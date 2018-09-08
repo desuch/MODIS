@@ -691,8 +691,8 @@ makeRandomString <- function(n=1, length=12)
     return(randomString)
 }
 
-# source <- genString()$remotePath
-doSource <- function(source)
+# combines genString()$remotePath with opts$dlmethod and opts$multisocket
+doSource <- function(remotePath)
 {
   opts <- combineOpts()
   

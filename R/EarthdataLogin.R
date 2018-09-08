@@ -39,7 +39,7 @@ EarthdataLogin <- function(usr = NULL, pwd = NULL) {
   nrc <- path.expand("~/.netrc")
   
   # read .netrc entire file
-  lns <-readCredentials()
+  lns <- readCredentials()
   
   # get servers found on .netrc
   machine <- unlist(listPather(lns,'machine'))
@@ -131,7 +131,8 @@ EarthdataLogin <- function(usr = NULL, pwd = NULL) {
 readCredentials = function() {
   
   # e .netrc file
-  nrc = path.expand("~/.netrc")
+  nrc <- path.expand("~/.netrc")
+  result <- list()
   
   # if (!file.exists(nrc))
   #   stop("~/.netrc file required. Either run lpdaacLogin() or set"
@@ -145,8 +146,7 @@ readCredentials = function() {
     #lns <- gsub(lns,pattern = ' urs.earthdata.nasa.gov$', replacement = ' e4ftl01.cr.usgs.gov')
     
     # get first position of earthdata inforation (.netrc file can contain several logins)
-    machines = grep(lns, pattern = '^machine ')
-    result <- list()
+    machines <- grep(lns, pattern = '^machine ')
     
     j <- 0
     for(i in machines)

@@ -35,6 +35,11 @@
 #' \code{"wget"} or, if installed, \code{"aria2"}. In order to download MODIS 
 #' files from LPDAAC and NSIDC, please note that either wget (default) or curl 
 #' must be installed and made available through the PATH environmental variable.
+#' @param multisocket \code{logical}, defaults to \code{TRUE}. This parameter
+#' enables the download from multiple socket connections (servers). This applies
+#' in case 1) \code{dlmethod} is set to 'aria2' and 2) multiple servers for the 
+#' same file exist. This is the case for most files found on LPDAAC and LAADS.  
+#' It seems to be more a choice of speed stability than for increasing it further.    
 #' @param stubbornness \code{numeric}. The number of retries after the target 
 #' server has refused a connection. Higher values increase the chance of getting 
 #' the file, but also lead to hanging functions if the server is down.
@@ -123,16 +128,17 @@
 #' @name MODISoptions
 MODISoptions <- function(localArcPath, outDirPath, pixelSize, outProj, 
                          resamplingType, dataFormat, gdalPath, MODISserverOrder, 
-                         dlmethod, stubbornness, wait, quiet, 
+                         dlmethod, multisocket=TRUE, stubbornness, wait, quiet, 
                          systemwide = FALSE, save = TRUE, checkTools = TRUE
                          , checkWriteDrivers = TRUE, ask = TRUE)
 {
-  # This function collects the package options from up to 3 files and creates 
+  # This function collects the package options from up to 3 source files and creates 
   # the .MODIS_Opts.R file (location depending on systemwide=T/F, see below):
-  # 1. package installation directory (factory defaults); 
+  # 1. Package installation directory (factory defaults); 
   # 2. /R/etc/.MODIS_Opts.R for system wide settings (all users of a machine) and 
   # 3. user home "~/.MODIS_Opts.R", for user specific settings. 
-  # settings are collected in direction 1-3 and each time overwritten if available
+  # settings are collected in direction 1-3 and each time overwritten by a subsequent
+  # file, if available.
   # The final settings are written in to the user specific file 3.
   # options are not tested here! only generated!
   
@@ -266,6 +272,13 @@ MODISoptions <- function(localArcPath, outDirPath, pixelSize, outProj,
     opt$dlmethod <- dlmethod
   }
   
+  if(!missing(multisocket))
+  {
+    multisocket <- as.logical(multisocket)
+    stopifnot(multisocket)
+    opt$multisocket <- multisocket
+  }
+    
   if(!missing(stubbornness))
   {
     opt$stubbornness <- stubbornness
@@ -394,7 +407,7 @@ MODISoptions <- function(localArcPath, outDirPath, pixelSize, outProj,
                     , open = "wt")
 
     write(paste0('# This file contains ', whose,' default values for the R package \'MODIS\'.'), filename)
-    write('# version 1.1.1', filename)
+    write('# version 1.1.3', filename)
     write('# consult \'?MODISoptions\' for details and explanations', filename)
     write('  ', filename)
     write('#########################', filename)
@@ -426,6 +439,7 @@ MODISoptions <- function(localArcPath, outDirPath, pixelSize, outProj,
       write(paste0('MODISserverOrder <- \'',opt$MODISserverOrder,'\'' ), filename)
     }
     write(paste0('dlmethod         <- \'',opt$dlmethod,'\'' ), filename)
+    write(paste0('multisocket      <- \'',opt$multisocket,'\'' ), filename)
     write(paste0('stubbornness     <- \'',opt$stubbornness,'\''), filename)
     write(paste0('wait             <- ',opt$wait), filename)
     write(paste0('quiet            <- ',opt$quiet), filename)
@@ -475,6 +489,7 @@ MODISoptions <- function(localArcPath, outDirPath, pixelSize, outProj,
   cat('_______________\n')
   cat('MODISserverOrder :', paste(opt$MODISserverOrder,collapse=", "),'\n')
   cat('dlmethod         :', opt$dlmethod,'\n')
+  cat('multisocket      :', opt$multisocket,'\n')
   cat('stubbornness     :', opt$stubbornness,'\n')
   cat('wait             :', opt$wait, "\n")
   cat('quiet            :', opt$quiet, "\n\n\n")

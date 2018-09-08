@@ -172,7 +172,7 @@ checkOutProj <- function(proj, tool, quiet=FALSE)
   }
 }
 
-# returns 0 if a given GDAL supports HDF4 else 1 
+# returns 0 if GDAL supports HDF4 else 1 
 checkGdalDriver <- function(path=NULL)
 {
   inW <- getOption("warn")
@@ -234,4 +234,30 @@ combineOptions <- function(checkTools = TRUE, ...)
   return(opts)
 }
 
+# actually this function can checks any cmd tools (via Sys.which()). We could think to use it as a general checkTools()
+checkDownloaders <- function(tool = c('wget','aria2','curl'), logical=TRUE)
+{
+  tool <- tolower(tool)
 
+  result <- rep(NA,length(tool))
+  
+  cmd <- gsub(tool, pattern = 'aria2$', replacement = 'aria2c')
+  for(i in seq_along(cmd))
+  {
+    result[i] <- Sys.which(cmd[i])
+  }
+  
+  if(logical)
+  {
+    result <- sapply(result,function(x){nchar(x)>0})  
+  }  
+
+  if(length(tool) > 1)
+  {
+    names(result) <- tool
+  } else
+  {
+    names(result) <- NULL
+  }
+  return(result)
+}  

@@ -691,7 +691,31 @@ makeRandomString <- function(n=1, length=12)
     return(randomString)
 }
 
-# this function care about the download of files. Based on remotePath (result of genString) it alterates the effort on available sources and stops after succeded download or by reacing the stubbornness thresshold.
+# source <- genString()$remotePath
+doSource <- function(source)
+{
+  opts <- combineOpts()
+  
+  if(!checkDownloaders(opts$dlmethod))
+  {
+    stop(opts$dlmethod, " is not avialble on this computer, please install it or select 
+         another method. To see which downloarders can be used run: checkDownloaders()")
+  }
+  
+  if(opts$dlmethod != 'aria2')
+  {
+    opts$multisocket <- FALSE
+  } 
+
+  # multisocket is enabled in case aria2 is selected + length(source)>1
+  if(opts$multisocket)
+  {
+    source <- paste(source, collapse=" ")
+  }
+  return(source)
+}
+
+# this function cares about the download of files. Based on remotePath (result of genString) it alterates the effort on available sources and stops after succeded download or by reacing the stubbornness thresshold.
 ModisFileDownloader <- function(x, opts = NULL, ...)
 {
     x <- basename(x)
@@ -705,7 +729,10 @@ ModisFileDownloader <- function(x, opts = NULL, ...)
       opts <- combineOptions(...)
     
     opts$stubbornness <- stubborn(opts$stubbornness)
-    opts$quiet <- as.logical(opts$quiet)
+    opts$quiet        <- as.logical(opts$quiet)
+    
+    dlok <- checkDownloaders(opts$dlmethod)
+    stopifnot(!dlok) 
     
     iw <- options()$warn 
     options(warn=-1)
@@ -713,55 +740,57 @@ ModisFileDownloader <- function(x, opts = NULL, ...)
 
     out <- rep(NA,length=length(x))
     
+    # cookies
+    ofl = file.path(opts$auxPath, ".cookies.txt")
+    if (!file.exists(ofl))
+      jnk = file.create(ofl)
+
     for (a in seq_along(x))
-    {  # a=1
-        path <- genString(x[a], opts = opts)
+    {
+        path           <- genString(x[a], opts = opts)
         path$localPath <- setPath(path$localPath)
+        destfile       <- paste0(path$localPath,x[a])
+
+        server <- names(path$remotePath)
         
-        hv <- seq_along(opts$MODISserverOrder)
+        hv <- seq_along(path$remotePath)
         hv <- rep(hv,length=opts$stubbornness)
+        
         g=1
         while(g <= opts$stubbornness) 
         {     
           if (!opts$quiet)
           {
+            if(useMultiSource)
+            {
+              cat("\nUsing multiple socket connetion to download the file\n############################\n")  
+            } else
+            {
               cat("\nGetting file from:",opts$MODISserverOrder[hv[g]],"\n############################\n")
+            }
           }
-          destfile <- paste0(path$localPath,x[a])
           
-          if(!.Platform$OS=="windows" & opts$dlmethod=="aria2")
+          if(useMulti)
           {
-            out[a] <- system(paste0("aria2c -x 3 --file-allocation=none ",paste(path$remotePath[which(names(path$remotePath)==opts$MODISserverOrder[hv[g]])],x[a],sep="/",collapse="")," -d ", dirname(destfile)))
+            infile <- paste(path$remotePath,x[a],sep="/",collapse=" ")
           } else
           {
-
-            ## if server is 'LPDAAC' or 'LAADS', consider MODISserverOrder
-            if (any(names(path$remotePath) %in% opts$MODISserverOrder[hv[g]])) {
-              id_remotepath <- which(names(path$remotePath) == opts$MODISserverOrder[hv[g]])
+            infile <- paste(path$remotePath[which(names(path$remotePath)==opts$MODISserverOrder[hv[g]])],x[a],sep="/",collapse="")
+          }
+          
+          
+          #"--http-user=" "--http-passwd="
+          if(opts$dlmethod == 'aria2' & checkDownloaders("aria2"))
+          {
+            out[a] <- system(paste0("aria2c -x 4 -s 4 --file-allocation=none --load-cookies=",ofl, " --save-cookies=",ofl," ",infile," -d ", dirname(destfile)))
+          }
+          if (opts$dlmethod == 'wget')
             
-            ## if not (e.g. when server is 'NTSG'), simply take the first `path$remotePath` entry
-            } else {
-              id_remotepath <- 1
-            }
-              
-            server <- names(path$remotePath)
-            if (length(server) > 1)
-              server <- server[which(server %in% opts$MODISserverOrder[hv[g]])]
-              
-            infile <- paste(path$remotePath[id_remotepath], x[a], sep = "/", 
-                            collapse = "")
-            
-            ## adapt 'dlmethod' and 'extra' if server == "LPDAAC"
-            if (server %in% c("LPDAAC", "NSIDC")) {
+            ## adapt 'dlmethod' and 'extra' if serverUse == "LPDAAC"
+            if (serverUse %in% c("LPDAAC", "NSIDC")) {
               if (!opts$dlmethod %in% c("wget", "curl")) {
 
-                cmd = try(system("wget -h", intern = TRUE), silent = TRUE)
-                method = "wget"
-                
-                if (inherits(cmd, "try-error")) {
-                  cmd = try(system("curl -h", intern = TRUE), silent = TRUE)
-                  method = "curl"
-                }
+
                 
                 if (inherits(cmd, "try-error")) {
                   stop("Make sure either 'wget' or 'curl' is available in "
@@ -770,12 +799,6 @@ ModisFileDownloader <- function(x, opts = NULL, ...)
               } else {
                 method <- opts$dlmethod
               }
-              
-              # cookies
-              ofl = file.path(tempdir(), ".cookies.txt")
-              if (!file.exists(ofl))
-                jnk = file.create(ofl)
-              on.exit(file.remove(ofl))
               
               # wget extras
               extra <- if (method == "wget") {
@@ -790,8 +813,8 @@ ModisFileDownloader <- function(x, opts = NULL, ...)
                       , '-k -L -c', ofl, '-b', ofl)
               }
               
-            ## else if server == "NTSG", choose 'wget' as download method  
-            } else if (server == "NTSG") {
+            ## else if serverUse == "NTSG", choose 'wget' as download method  
+            } else if (serverUse == "NTSG") {
               method <- "wget"
               extra <- getOption("download.file.extra")
               
@@ -803,7 +826,7 @@ ModisFileDownloader <- function(x, opts = NULL, ...)
             
             
             # curl download from LPDAAC or NSIDC
-            out[a] = if (method == "curl" & server %in% c("LPDAAC", "NSIDC")) {
+            out[a] = if (method == "curl" & serverUse %in% c("LPDAAC", "NSIDC")) {
               h = curl::new_handle()
               curl::handle_setopt(
                 handle = h,
@@ -902,6 +925,7 @@ doCheckIntegrity <- function(x, opts = NULL, ...) {
   }
   return(as.logical(out)) 
 }
+
 
 # setPath for localArcPath and outDirPath
 setPath <- function(path, ask=FALSE, showWarnings=FALSE, mkdir = TRUE)

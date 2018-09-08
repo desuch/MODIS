@@ -5,9 +5,9 @@
 \title{Set or Retrieve Permanent MODIS Package Options}
 \usage{
 MODISoptions(localArcPath, outDirPath, pixelSize, outProj, resamplingType,
-  dataFormat, gdalPath, MODISserverOrder, dlmethod, stubbornness, wait,
-  quiet, systemwide = FALSE, save = TRUE, checkTools = TRUE,
-  checkWriteDrivers = TRUE, ask = TRUE)
+  dataFormat, gdalPath, MODISserverOrder, dlmethod, multisocket = TRUE,
+  stubbornness, wait, quiet, systemwide = FALSE, save = TRUE,
+  checkTools = TRUE, checkWriteDrivers = TRUE, ask = TRUE)
 }
 \arguments{
 \item{localArcPath}{\code{character}, defaults to 
@@ -49,6 +49,12 @@ available are inhibited.}
 \code{"wget"} or, if installed, \code{"aria2"}. In order to download MODIS 
 files from LPDAAC and NSIDC, please note that either wget (default) or curl 
 must be installed and made available through the PATH environmental variable.}
+
+\item{multisocket}{\code{logical}, defaults to \code{TRUE}. This parameter
+enables the download from multiple socket connections (servers). This applies
+in case 1) \code{dlmethod} is set to 'aria2' and 2) multiple servers for the 
+same file exist. This is the case for most files found on LPDAAC and LAADS.  
+It is more a choice of connection stability than download speed.}
 
 \item{stubbornness}{\code{numeric}. The number of retries after the target 
 server has refused a connection. Higher values increase the chance of getting 

@@ -19,6 +19,7 @@ outDirPath   <- file.path(localArcPath, 'PROCESSED')
 # 2.) Download:
 # consult '?MODISoptions' for more details
 dlmethod     <- 'auto' # Download method passed to ?download.file, 'auto' is always a good choice, if you encouter problems (like 'file not found') switch to 'wget'
+multisocket  <- TRUE   # If dlmethod is aria2 allow multisocket connections
 stubbornness <- 'high' # How stubborn should MODIS re-try to connect to ftp/http?
 wait <- 0.5
 quiet <- FALSE
